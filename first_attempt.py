@@ -3,15 +3,16 @@ import numpy as np
 import os
 import PIL
 import tensorflow as tf
+import tensorflow_addons as tfa
 
 from tensorflow import keras
 from keras import layers
 from keras.models import Sequential
+from keras.metrics import Precision
 
-import pathlib
 """DELETE THE images subdirectory to run, otherwise it will recognize a non-valid directory!"""
 
-
+import pathlib
 """Link to pre-split dataset"""
 imgs = pathlib.Path('Images1')
 
@@ -36,10 +37,10 @@ extrapolation in the way I assume it to be good...
 
 20% split is good I guess?"""
 
-batch_size = 24
+batch_size = 50
 height = 200
 width = 200
-seed = 100
+seed = 101
 
 train_ds = tf.keras.utils.image_dataset_from_directory(
   imgs,
@@ -47,7 +48,9 @@ train_ds = tf.keras.utils.image_dataset_from_directory(
   subset="training",
   seed=seed,
   image_size=(height, width),
-  batch_size=batch_size)
+  batch_size=batch_size,
+
+)
 
 val_ds = tf.keras.utils.image_dataset_from_directory(
   imgs,
@@ -55,7 +58,9 @@ val_ds = tf.keras.utils.image_dataset_from_directory(
   subset="validation",
   seed=seed,
   image_size=(height, width),
-  batch_size=batch_size)
+  batch_size=batch_size,
+
+)
 
 class_names = train_ds.class_names
 print(class_names)
@@ -95,7 +100,7 @@ neg, pos = len(negatives), len(positives)
 model = Sequential([
   layers.Resizing(height,width),
   layers.Rescaling(1./255, input_shape=(height, width, dimensions)),
-  layers.RandomZoom(0.1),
+  layers.RandomZoom(0.05),
   layers.Conv2D(16, kernel_s, padding='same', activation='relu'),
   layers.MaxPooling2D(),
   layers.Conv2D(32, kernel_s, padding='same', activation='relu'),
@@ -107,8 +112,8 @@ model = Sequential([
   layers.Dense(128, activation='relu'),
   layers.Dense(1, activation = 'sigmoid')
 ])
-"""class weights"""
-cl_wght = {0: (1 / neg) * ((neg + pos) / 2.0), 1:(1 / pos) * ((neg + pos) / 2.0)}
+"""class weights - use inverse multiplicants"""
+cl_wght = {0: (1 / neg) * ((neg + pos) / 1), 1:(1 / pos) * ((neg + pos) / 1)}
 print(cl_wght)
 """From_logits = True crashes it, pls investigate why
 
@@ -120,7 +125,7 @@ model.compile(optimizer='adam',
 
 
 
-epochs = 15
+epochs = 10
 
 history = model.fit(
   train_ds,
@@ -128,6 +133,7 @@ history = model.fit(
   epochs=epochs,
   class_weight = cl_wght
 )
+
 print(history.history)
 acc = history.history['accuracy']
 val_acc = history.history['val_accuracy']

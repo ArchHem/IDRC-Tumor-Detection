@@ -113,19 +113,33 @@ model = Sequential([
   layers.Dense(1, activation = 'sigmoid')
 ])
 """class weights - use inverse multiplicants"""
-cl_wght = {0: (1 / neg) * ((neg + pos) / 1), 1:(1 / pos) * ((neg + pos) / 1)}
+cl_wght = {0: (1 / neg) * ((neg + pos) / 2), 1:(1 / pos) * ((neg + pos) / 2)}
 print(cl_wght)
 """From_logits = True crashes it, pls investigate why
 
 tried, did not work, returning to weighted example: tfa.losses.SigmoidFocalCrossEntropy(from_logits=False, alpha = 0.25, gamma = 2)"""
 """try adding precision label: https://github.com/huggingface/transformers/issues/10075"""
+METRICS = [
+      keras.metrics.TruePositives(name='tp'),
+      keras.metrics.FalsePositives(name='fp'),
+      keras.metrics.TrueNegatives(name='tn'),
+      keras.metrics.FalseNegatives(name='fn'),
+      keras.metrics.BinaryAccuracy(name='accuracy'),
+      keras.metrics.Precision(name='precision'),
+      keras.metrics.Recall(name='recall'),
+      keras.metrics.AUC(name='auc', from_logits=True),
+      keras.metrics.AUC(name='prc', curve='PR',from_logits=True), # precision-recall curve
+]
+
 model.compile(optimizer='adam',
               loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
-              metrics=['accuracy'])
+              metrics=METRICS)
 
 
 
-epochs = 10
+epochs = 8
+
+
 
 history = model.fit(
   train_ds,
@@ -155,7 +169,27 @@ plt.plot(epochs_range, val_loss, label='Validation Loss')
 plt.legend(loc='upper right')
 plt.title('Training and Validation Loss')
 
+tp, fp = history.history['tp'], history.history['fp']
+tpv, fpv = history.history['val_tp'], history.history['val_fp']
+fig, ax = plt.subplots(1,2)
+ax[0].plot(fp,tp, color = 'blue', ls = '--', label = 'Training dataset')
+ax[1].plot(fpv,tpv, color = 'green', ls = '--', label = 'Validation dataset')
+ax[0].set(xlabel='False Positives',ylabel = 'True Positives')
+ax[1].set(xlabel='False Positives',ylabel = 'True Positives')
+ax[0].legend()
+ax[1].legend()
 model.save('models/model4')
+
+fig1, ax1 = plt.subplots(1,2)
+
+precision, precisonv, recall, recallv = history.history['precision'],history.history['val_precision'],history.history['prc'],history.history['val_prc']
+ax1[0].plot(recall,precision, color = 'blue', ls = '--', label = 'Training dataset')
+ax1[1].plot(recallv,precisonv, color = 'green', ls = '--', label = 'Validation dataset')
+ax1[0].set(xlabel='Recall',ylabel = 'Precision')
+ax1[1].set(xlabel='Recall',ylabel = 'Precision')
+ax1[0].legend()
+ax1[1].legend()
+
 
 model.summary()
 

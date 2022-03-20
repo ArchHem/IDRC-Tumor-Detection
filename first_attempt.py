@@ -13,6 +13,7 @@ from keras.metrics import Precision
 """DELETE THE images subdirectory to run, otherwise it will recognize a non-valid directory!"""
 
 import pathlib
+log_state = False
 """Link to pre-split dataset"""
 imgs = pathlib.Path('Images1')
 
@@ -38,8 +39,8 @@ extrapolation in the way I assume it to be good...
 20% split is good I guess?"""
 
 batch_size = 50
-height = 200
-width = 200
+height = 250
+width = 250
 seed = 101
 
 train_ds = tf.keras.utils.image_dataset_from_directory(
@@ -97,11 +98,12 @@ neg, pos = len(negatives), len(positives)
 
 
 """single neuron output - binary model"""
+corrected_bias = np.array([np.log(pos/neg)])
 model = Sequential([
   layers.Resizing(height,width),
   layers.Rescaling(1./255, input_shape=(height, width, dimensions)),
   layers.RandomZoom(0.05),
-  layers.Conv2D(16, kernel_s, padding='same', activation='relu'),
+  layers.Conv2D(16, kernel_s+2, padding='same', activation='relu'),
   layers.MaxPooling2D(),
   layers.Conv2D(32, kernel_s, padding='same', activation='relu'),
   layers.MaxPooling2D(),
@@ -127,17 +129,17 @@ METRICS = [
       keras.metrics.BinaryAccuracy(name='accuracy'),
       keras.metrics.Precision(name='precision'),
       keras.metrics.Recall(name='recall'),
-      keras.metrics.AUC(name='auc', from_logits=True),
-      keras.metrics.AUC(name='prc', curve='PR',from_logits=True), # precision-recall curve
+      keras.metrics.AUC(name='auc', from_logits=log_state),
+      keras.metrics.AUC(name='prc', curve='PR',from_logits=log_state), # precision-recall curve
 ]
 
 model.compile(optimizer='adam',
-              loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+              loss=tf.keras.losses.BinaryCrossentropy(from_logits=log_state),
               metrics=METRICS)
 
 
 
-epochs = 8
+epochs = 50
 
 
 
